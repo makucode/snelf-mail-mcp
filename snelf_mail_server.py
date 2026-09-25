@@ -46,6 +46,10 @@ RULES: tuple[MailRule, ...] = (
         name="dott_1_eur",
         subject_equals=("Dott (emTransit BV): 1,00 € EUR",),
     ),
+    MailRule(
+        name="dott_1_35_eur",
+        subject_equals=("Dott (emTransit BV): 1,35 € EUR",),
+    ),
 )
 
 PAGE_SIZE = 100
