@@ -9,6 +9,7 @@ RUN addgroup -g 10000 mailmcp \
     && adduser -D -u 10000 -G mailmcp mailmcp
 
 COPY --chmod=0755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY --chmod=0644 snelf_mail_server.py /opt/snelf/snelf_mail_server.py
 
 USER mailmcp
 
@@ -16,4 +17,4 @@ EXPOSE 9557
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
-CMD ["mcp-email-server", "streamable-http"]
+CMD ["python", "/opt/snelf/snelf_mail_server.py"]
