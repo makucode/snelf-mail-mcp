@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from email.utils import parseaddr
 from typing import Annotated, Literal
+import unicodedata
 
 from pydantic import Field
 
@@ -60,14 +61,19 @@ TRASH_FALLBACK_NAMES = (
 )
 
 
+def _normalize_text(value: str) -> str:
+    normalized = unicodedata.normalize("NFKC", value)
+    return " ".join(normalized.split()).casefold()
+
+
 def _contains_any(value: str, needles: tuple[str, ...]) -> bool:
-    value_folded = value.casefold()
-    return any(needle.casefold() in value_folded for needle in needles)
+    value_normalized = _normalize_text(value)
+    return any(_normalize_text(needle) in value_normalized for needle in needles)
 
 
 def _equals_any(value: str, expected: tuple[str, ...]) -> bool:
-    value_folded = value.casefold()
-    return any(item.casefold() == value_folded for item in expected)
+    value_normalized = _normalize_text(value)
+    return any(_normalize_text(item) == value_normalized for item in expected)
 
 
 def _sender_address(sender: str) -> str:
