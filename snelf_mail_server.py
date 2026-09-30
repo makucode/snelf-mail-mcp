@@ -101,7 +101,13 @@ def _link_domains(body: str) -> list[str]:
     seen: set[str] = set()
 
     for match in _URL_RE.findall(body):
-        hostname = (urlparse(match).hostname or "").casefold().rstrip(".")
+        try:
+            hostname = (urlparse(match).hostname or "").casefold().rstrip(".")
+        except ValueError:
+            # Malformed URLs in untrusted email bodies must not abort an
+            # otherwise valid INBOX sort batch (e.g. "Invalid IPv6 URL").
+            continue
+
         if hostname.startswith("www."):
             hostname = hostname[4:]
         if not hostname or hostname in seen:
