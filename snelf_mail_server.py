@@ -71,6 +71,11 @@ RULES: tuple[MailRule, ...] = (
         subject_contains=("code",),
         sender_contains=("klarna", "paypal"),
     ),
+    MailRule(
+        name="amazon_invitation_request",
+        subject_equals=("Einladungsanfrage erhalten",),
+        sender_contains=("amazon",),
+    ),
 )
 
 PAGE_SIZE = 100
