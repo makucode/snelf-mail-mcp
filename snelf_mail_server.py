@@ -63,7 +63,13 @@ RULES: tuple[MailRule, ...] = (
             ("änder", "e-mail-adresse"),
             ("verifizier", "e-mail-adresse"),
             ("bestätigungscode",),
+            ("änder", "konto"),
         ),
+    ),
+    MailRule(
+        name="klarna_paypal_codes",
+        subject_contains=("code",),
+        sender_contains=("klarna", "paypal"),
     ),
 )
 
