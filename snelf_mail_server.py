@@ -26,6 +26,8 @@ class MailRule:
     # OR within one field, AND across configured fields.
     subject_equals: tuple[str, ...] = ()
     subject_contains: tuple[str, ...] = ()
+    # OR across groups, AND within each group. Term order is irrelevant.
+    subject_contains_groups: tuple[tuple[str, ...], ...] = ()
     sender_equals: tuple[str, ...] = ()
     sender_contains: tuple[str, ...] = ()
     body_contains: tuple[str, ...] = ()
@@ -35,6 +37,7 @@ class MailRule:
             (
                 self.subject_equals,
                 self.subject_contains,
+                self.subject_contains_groups,
                 self.sender_equals,
                 self.sender_contains,
                 self.body_contains,
@@ -51,6 +54,16 @@ RULES: tuple[MailRule, ...] = (
     MailRule(
         name="dott_1_35_eur",
         subject_equals=("Dott (emTransit BV): 1,35 € EUR",),
+    ),
+    MailRule(
+        name="email_address_confirmation",
+        subject_contains_groups=(
+            ("bestätig", "e-mail-adresse"),
+            ("anmeld", "e-mail-adresse"),
+            ("änder", "e-mail-adresse"),
+            ("verifizier", "e-mail-adresse"),
+            ("bestätigungscode",),
+        ),
     ),
 )
 
@@ -138,6 +151,14 @@ def _equals_any(value: str, expected: tuple[str, ...]) -> bool:
     return any(_normalize_text(item) == value_normalized for item in expected)
 
 
+def _contains_any_group(value: str, groups: tuple[tuple[str, ...], ...]) -> bool:
+    value_normalized = _normalize_text(value)
+    return any(
+        all(_normalize_text(term) in value_normalized for term in group)
+        for group in groups
+    )
+
+
 def _sender_address(sender: str) -> str:
     return parseaddr(sender)[1] or sender
 
@@ -147,6 +168,11 @@ def _metadata_matches(email: EmailMetadata, rule: MailRule) -> bool:
         return False
 
     if rule.subject_contains and not _contains_any(email.subject, rule.subject_contains):
+        return False
+
+    if rule.subject_contains_groups and not _contains_any_group(
+        email.subject, rule.subject_contains_groups
+    ):
         return False
 
     sender_address = _sender_address(email.sender)
