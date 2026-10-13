@@ -28,6 +28,7 @@ class MailRule:
     subject_contains: tuple[str, ...] = ()
     # OR across groups, AND within each group. Term order is irrelevant.
     subject_contains_groups: tuple[tuple[str, ...], ...] = ()
+    subject_regex: tuple[str, ...] = ()
     sender_equals: tuple[str, ...] = ()
     sender_contains: tuple[str, ...] = ()
     body_contains: tuple[str, ...] = ()
@@ -38,6 +39,7 @@ class MailRule:
                 self.subject_equals,
                 self.subject_contains,
                 self.subject_contains_groups,
+                self.subject_regex,
                 self.sender_equals,
                 self.sender_contains,
                 self.body_contains,
@@ -48,12 +50,9 @@ class MailRule:
 
 RULES: tuple[MailRule, ...] = (
     MailRule(
-        name="dott_1_eur",
-        subject_equals=("Dott (emTransit BV): 1,00 € EUR",),
-    ),
-    MailRule(
-        name="dott_1_35_eur",
-        subject_equals=("Dott (emTransit BV): 1,35 € EUR",),
+        name="dott_charge",
+        subject_contains=("Dott (emTransit BV):",),
+        subject_regex=(r"Dott \(emTransit BV\): \d+(?:[.,]\d+)* € EUR",),
     ),
     MailRule(
         name="email_address_confirmation",
@@ -170,6 +169,11 @@ def _contains_any_group(value: str, groups: tuple[tuple[str, ...], ...]) -> bool
     )
 
 
+def _matches_any_regex(value: str, patterns: tuple[str, ...]) -> bool:
+    value_normalized = _compact_text(value)
+    return any(re.fullmatch(pattern, value_normalized, re.IGNORECASE) for pattern in patterns)
+
+
 def _sender_address(sender: str) -> str:
     return parseaddr(sender)[1] or sender
 
@@ -184,6 +188,9 @@ def _metadata_matches(email: EmailMetadata, rule: MailRule) -> bool:
     if rule.subject_contains_groups and not _contains_any_group(
         email.subject, rule.subject_contains_groups
     ):
+        return False
+
+    if rule.subject_regex and not _matches_any_regex(email.subject, rule.subject_regex):
         return False
 
     sender_address = _sender_address(email.sender)
@@ -218,9 +225,18 @@ async def _find_trash_mailbox(handler) -> str | None:
 
 async def _list_candidates(handler, rule: MailRule) -> list[EmailMetadata]:
     # Use one server-side filter when it is unambiguous, then verify every
-    # configured condition locally. This keeps the rule model extensible while
-    # avoiding a full INBOX scan for the common exact-subject/sender cases.
+    # configured condition locally. IMAP SUBJECT searches are substring matches,
+    # so a single contains-term can safely narrow candidates for regex/group rules.
     subject_filter = rule.subject_equals[0] if len(rule.subject_equals) == 1 else None
+    if subject_filter is None and len(rule.subject_contains) == 1:
+        subject_filter = rule.subject_contains[0]
+    if (
+        subject_filter is None
+        and len(rule.subject_contains_groups) == 1
+        and rule.subject_contains_groups[0]
+    ):
+        subject_filter = rule.subject_contains_groups[0][0]
+
     sender_filter = rule.sender_equals[0] if len(rule.sender_equals) == 1 else None
 
     page = 1
